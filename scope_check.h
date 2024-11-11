@@ -4,6 +4,11 @@
 #include "ast.h"
 #include "id_use.h"
 
+// idents_t is undefined
+// type_exp_e is undefined
+// begin_stmt_t is undefined
+// write_stmt_t is undefined
+
 // Build the symbol table for the given program AST
 // and check the given program AST for duplicate declarations
 // or uses of identifiers that were not declared
@@ -19,12 +24,18 @@ extern void scope_check_varDecl(var_decl_t vd);
 // Add declarations for the names in ids to the current scope's symbol table,
 // for variables of the type t,
 // producing errors for any duplicate declarations
-extern void scope_check_idents(idents_t ids, type_exp_e t);
+extern void scope_check_idents(ident_list_t ids, id_kind t);
 
 // Add a declaration of the name id.name with the type t
 // to the current scope's symbol table,
 // producing an error if this would be a duplicate declaration
-extern void scope_check_declare_ident(ident_t id, type_exp_e t);
+extern void scope_check_declare_ident(ident_t id, id_kind t);
+
+// check the statements to make sure that
+// all idenfifiers referenced in them have been declared
+// (if not, then produce an error)
+// Return the modified AST with id_use pointers
+extern stmts_t scope_check_stmts(stmts_t stmts);
 
 // check the statement to make sure that
 // all idenfifiers referenced in it have been declared
@@ -39,19 +50,6 @@ extern stmt_t scope_check_stmt(stmt_t stmt);
 extern assign_stmt_t scope_check_assignStmt(assign_stmt_t stmt);
 
 // check the statement to make sure that
-// there are no duplicate declarations and that
-// all idenfifiers referenced in it have been declared
-// (if not, then produce an error)
-// Return the modified AST with id_use pointers
-extern begin_stmt_t scope_check_beginStmt(begin_stmt_t stmt);
-
-// check the statements to make sure that
-// all idenfifiers referenced in them have been declared
-// (if not, then produce an error)
-// Return the modified AST with id_use pointers
-extern stmts_t scope_check_stmts(stmts_t stmts);
-
-// check the statement to make sure that
 // all idenfifiers referenced in it have been declared
 // (if not, then produce an error)
 // Return the modified AST with id_use pointers
@@ -62,12 +60,6 @@ extern if_stmt_t scope_check_ifStmt(if_stmt_t stmt);
 // (if not, then produce an error)
 // Return the modified AST with id_use pointers
 extern read_stmt_t scope_check_readStmt(read_stmt_t stmt);
-
-// check the statement to make sure that
-// all idenfifiers referenced in it have been declared
-// (if not, then produce an error)
-// Return the modified AST with id_use pointers
-extern write_stmt_t scope_check_writeStmt(write_stmt_t stmt);
 
 // check the expresion to make sure that
 // all idenfifiers referenced in it have been declared

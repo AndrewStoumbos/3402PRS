@@ -63,7 +63,8 @@ typedef struct {
 } token_t;
 
 // kinds of expressions
-typedef enum { expr_bin, expr_negated, expr_ident, expr_number } expr_kind_e;
+typedef enum { expr_bin, expr_negated, 
+               expr_ident, expr_number } expr_kind_e;
 
 // forward declaration for the expr type
 struct expr_s;

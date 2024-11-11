@@ -117,56 +117,166 @@ extern void setProgAST(block_t t);
 }
 
 %%
+ /* Write your grammar rules below and before the next %% */
 
-program : varDecls stmts { program_t prog = ast_program($1, $2); setProgAST(prog); }
-;
+program:
+    block "." { setProgAST($1); }
+    ;
 
-stmts : stmt { $$ = ast_stmts_singleton($1); }
-      | stmts stmt { $$ = ast_stmts($1, $2); }
-;
+block:
+    "begin" constDecls varDecls procDecls stmts "end"
+    {
+        $$ = ast_block($1,$2,$3,$4,$5);
+    }
+    ;
 
-stmt : assignStmt { $$ = ast_stmt_assign($1); }
-     | beginStmt { $$ = ast_stmt_begin($1); }
-     | ifStmt { $$ = ast_stmt_if($1); }
-     | whileStmt { $$ = ast_stmt_while($1); }
-     | readStmt { $$ = ast_stmt_read($1); }
-     | printStmt { $$ = ast_stmt_print($1); }
-;
+constDecls:
+    empty { $$ = ast_const_decls_empty($1); }
+    | constDecls constDecl { $$ = ast_const_decls($1, $2); }
+    ;
 
-ifStmt : ifsym "(" expr ")" stmt { $$ = ast_if_stmt($3, $5); }
-       | ifsym "(" expr ")" stmt elsesym stmt { $$ = ast_if_else_stmt($3, $5, $7); }
-;
+empty: 
+    %empty
+    {
+        file_location *floc = file_location_make(lexer_filename(), lexer_line());
+        $$ = ast_empty(floc); 
+    }
+    ;
 
-whileStmt : whilesym "(" expr ")" stmt { $$ = ast_while_stmt($3, $5); }
-;
+constDecl:
+    "const" constDefList ";" { $$ = ast_const_decl($2); }
+    ;
 
-printStmt : printsym expr ";" { $$ = ast_print_stmt($2); }
-;
+constDefList:
+    constDef { $$ = ast_const_def_list_singleton($1); }
+    | constDefList "," constDef { $$ = ast_const_def_list($1, $3); }
+    ;
 
-expr : lterm
-     | lterm relOp lterm { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
+constDef:
+    identsym eqsym numbersym { $$ = ast_const_def($1, $3); }
+    ;
 
-lterm : lfactor
-      | "!" lterm { $$ = ast_expr_logical_not($2); }
-;
+varDecls:
+    empty { $$ = ast_var_decls_empty($1); }
+    | varDecls varDecl { $$ = ast_var_decls($1, $2); }
+    ;
 
-lfactor : term
-        | lfactor "+" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-        | lfactor "-" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
+varDecl:
+    "var" identList ";" { $$ = ast_var_decl($2); }
+    ;
 
-term : factor
-     | term "*" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-     | term "/" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
+identList:
+    identsym { $$ = ast_ident_list_singleton($1); }
+    | identList "," identsym {ast_ident_list($1, $3); }
+    ;
 
-factor : identsym { $$ = ast_expr_ident($1); }
-       | numbersym { $$ = ast_expr_number($1); }
-       | "(" expr ")" { $$ = $2; }
-;
+procDecls:
+    empty { $$ = ast_proc_decls_empty($1); }
+    | procDecls procDecl { $$ = ast_proc_decls($1, $2); }
+    ;
+
+procDecl:
+    "proc" identsym block ";" { $$ = ast_proc_decl($2, $3); }
+    ;
+
+stmts:
+    empty { $$ = ast_stmts_empty($1); }
+    | stmtList { $$ = ast_stmts($1); }
+    ;
+
+stmtList:
+    stmt { $$ = ast_stmt_list_singleton($1); }
+    | stmtList ";" stmt { $$ = ast_stmt_list($1, $3); }
+    ;
+
+stmt:
+    assignStmt { $$ = ast_stmt_assign($1); }
+    | callStmt { $$ = ast_stmt_call($1); }
+    | ifStmt { $$ = ast_stmt_if($1); }
+    | whileStmt { $$ = ast_stmt_while($1); }
+    | readStmt { $$ = ast_stmt_read($1); }
+    | printStmt { $$ = ast_stmt_print($1); }
+    | blockStmt { $$ = ast_stmt_block($1); }
+    ;
+
+assignStmt:
+    identsym becomessym expr { $$ = ast_assign_stmt($1, $3); }
+    ;
+
+callStmt:
+    "call" identsym { $$ = ast_call_stmt($2); }
+    ;
+
+ifStmt:
+    "if" condition "then" stmts "else" stmts "end" { $$ = ast_if_then_else_stmt($2, $4, $6); }
+    | "if" condition "then" stmts "end" { $$ = ast_if_then_stmt($2, $4); }
+    ;
+
+whileStmt:
+    "while" condition "do" stmts "end" { $$ = ast_while_stmt($2, $4); }
+    ;
+
+readStmt:
+    "read" identsym { $$ = ast_read_stmt($2); }
+    ;
+
+printStmt:
+    "print" expr { $$ = ast_print_stmt($2); }
+    ;
+
+blockStmt:
+    block { $$ = ast_block_stmt($1); }
+    ;
+
+condition:
+    dbCondition { $$ = ast_condition_db($1); }
+    | relOpCondition { $$ = ast_condition_rel_op($1); }
+    ;
+
+dbCondition:
+    "divisible" expr "by" expr { $$ = ast_db_condition($2, $4); }
+    ;
+
+relOpCondition:
+    expr relOp expr { $$ = ast_rel_op_condition($1, $2, $3); }
+    ;
+
+relOp:
+    eqeqsym
+    | neqsym
+    | ltsym
+    | leqsym
+    | gtsym
+    | geqsym
+    ;
+
+expr:
+    term
+    | expr plussym term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+    | expr minussym term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+    ;
+
+term:
+    factor
+    | term multsym factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+    | term divsym factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+    ;
+
+factor:
+    identsym { $$ = ast_expr_ident($1); }
+    | numbersym { $$ = ast_expr_number($1); }
+    | sign factor { $$ = ast_expr_signed_expr($1, $2); }
+    | "(" expr ")" { $$ = $2; }
+    ;
+
+sign:
+    minussym
+    | plussym
+    ;
 
 %%
 
 // Set the program's ast to be ast
 void setProgAST(block_t ast) { progast = ast; }
+
+

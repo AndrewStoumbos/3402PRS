@@ -90,12 +90,13 @@ bool symtab_declared_in_current_scope(const char *name)
 static void add_ident(scope_t *s, const char *name, id_attrs *attrs)
 {
     id_attrs *old_attrs = scope_lookup(s, name);
-    if (old_attrs != NULL) {
-        bail_with_prog_error(attrs->file_loc,
-		      "symtab_insert called with an already declared variable\"%s\"!",
-		      name);
-    } else {
-	scope_insert(s, name, attrs);
+    if (old_attrs != NULL) 
+    {
+        bail_with_prog_error(attrs->file_loc, "symtab_insert called with an already declared variable\"%s\"!", name);
+    } 
+    else 
+    {
+	    scope_insert(s, name, attrs);
     }
 }
 
@@ -118,8 +119,9 @@ void symtab_enter_scope()
 // Requires: !symtab_empty()
 void symtab_leave_scope()
 {
-    if (symtab_top_idx < 0) {
-	bail_with_error("Cannot leave scope, no scope on symtab's stack!");
+    if (symtab_top_idx < 0) 
+    {
+	    bail_with_error("Cannot leave scope, no scope on symtab's stack!");
     }
     symtab_top_idx--;
 }
@@ -130,12 +132,15 @@ void symtab_leave_scope()
 id_use *symtab_lookup(const char *name)
 {
     unsigned int levelsOut = 0;
-    for (int level = symtab_top_idx; 0 <= level; level--) {
-	id_attrs *attrs = scope_lookup(symtab[level], name);
-	if (attrs != NULL) {
-	    return id_use_create(attrs, levelsOut);
-	}
-	levelsOut++;
+    for (int level = symtab_top_idx; 0 <= level; level--) 
+    {
+	    id_attrs *attrs = scope_lookup(symtab[level], name);
+
+        if (attrs != NULL) 
+        {
+            return id_use_create(attrs, levelsOut);
+        }
+        levelsOut++;
     }
     return NULL;
 }

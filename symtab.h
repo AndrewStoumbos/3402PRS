@@ -31,8 +31,7 @@ extern bool symtab_scope_full();
 // Return the current nesting level 
 // (num. of symtab_enter_scope() calls
 //  - num. of symtab_leave_scope() calls
-extern unsigned int
-   symtab_current_nesting_level();
+extern unsigned int symtab_current_nesting_level();
 
 // Is the symbol table itself full?
 extern bool symtab_full();
@@ -43,16 +42,13 @@ extern bool symtab_declared(const char *name);
 
 // Is name declared in the current scope?
 // (this only looks in the current scope)
-extern bool
-         symtab_declared_in_current_scope(
-		        const char *name);
+extern bool symtab_declared_in_current_scope(const char *name);
 
 // Requires: attrs != NULL &&
 // !symtab_declared_in_current_scope(name)
 // Add an association from the given name
 // to the given attributes
-extern void symtab_insert(
-       const char *name, id_attrs *attrs);
+extern void symtab_insert(const char *name, id_attrs *attrs);
 
 // Requires: !symtab_full()
 // Start a new scope (for a block)
@@ -64,7 +60,6 @@ extern void symtab_leave_scope();
 // If name is declared, return
 // an id_use pointer for it, otherwise
 // return NULL if name isn't declared
-extern id_use *symtab_lookup(
-                       const char *name);
+extern id_use *symtab_lookup(const char *name);
 
 #endif
