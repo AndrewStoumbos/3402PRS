@@ -117,156 +117,54 @@ extern void setProgAST(block_t t);
 }
 
 %%
- /* Write your grammar rules below and before the next %% */
 
+program : varDecls stmts { program_t prog = ast_program($1, $2); setProgAST(prog); }
+;
 
-program:
-    block '.'
-    ;
+stmts : stmt { $$ = ast_stmts_singleton($1); }
+      | stmts stmt { $$ = ast_stmts($1, $2); }
+;
 
-block:
-    beginsym constDecls varDecls procDecls stmts endsym
-    ;
+stmt : assignStmt { $$ = ast_stmt_assign($1); }
+     | beginStmt { $$ = ast_stmt_begin($1); }
+     | ifStmt { $$ = ast_stmt_if($1); }
+     | whileStmt { $$ = ast_stmt_while($1); }
+     | readStmt { $$ = ast_stmt_read($1); }
+     | printStmt { $$ = ast_stmt_print($1); }
+;
 
-constDecls:
-    /* empty */
-    | constDecl
-    ;
+ifStmt : ifsym "(" expr ")" stmt { $$ = ast_if_stmt($3, $5); }
+       | ifsym "(" expr ")" stmt elsesym stmt { $$ = ast_if_else_stmt($3, $5, $7); }
+;
 
-constDecl:
-    constsym constDefList ';'
-    ;
+whileStmt : whilesym "(" expr ")" stmt { $$ = ast_while_stmt($3, $5); }
+;
 
-constDefList:
-    constDef
-    | constDefList ',' constDef
-    ;
+printStmt : printsym expr ";" { $$ = ast_print_stmt($2); }
+;
 
-constDef:
-    identsym '=' numbersym
-    ;
+expr : lterm
+     | lterm relOp lterm { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+;
 
-varDecls:
-    /* empty */
-    | varDecl varDecls
-    ;
+lterm : lfactor
+      | "!" lterm { $$ = ast_expr_logical_not($2); }
+;
 
-varDecl:
-    varsym identList ';'
-    ;
+lfactor : term
+        | lfactor "+" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+        | lfactor "-" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+;
 
-identList:
-    identsym
-    | identList ',' identsym
-    ;
+term : factor
+     | term "*" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+     | term "/" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
+;
 
-procDecls:
-    /* empty */
-    | procDecl procDecls
-    ;
-
-procDecl:
-    procsym identsym block ';'
-    ;
-
-stmts:
-    empty
-    | stmtList
-    ;
-
-empty:
-    /* empty */
-
-
-stmtList:
-    stmt
-    | stmtList ';' stmt
-    ;
-
-stmt:
-    assignStmt
-    | callStmt
-    | ifStmt
-    | whileStmt
-    | readStmt
-    | printStmt
-    | blockStmt
-    ;
-
-assignStmt:
-    identsym becomessym expr
-    ;
-
-callStmt:
-    callsym identsym
-    ;
-
-ifStmt:
-    ifsym condition thensym stmts elsesym stmts endsym
-    | ifsym condition thensym stmts endsym
-    ;
-
-whileStmt:
-    whilesym condition dosym stmts endsym
-    ;
-
-readStmt:
-    readsym identsym
-    ;
-
-printStmt:
-    printsym expr
-    ;
-
-blockStmt:
-    block
-    ;
-
-condition:
-    dbCondition
-    | relOpCondition
-    ;
-
-dbCondition:
-    divisiblesym expr bysym expr
-    ;
-
-relOpCondition:
-    expr relOp expr
-    ;
-
-relOp:
-    eqeqsym
-    | neqsym
-    | ltsym
-    | leqsym
-    | gtsym
-    | geqsym
-    ;
-
-expr:
-    term
-    | expr plussym term
-    | expr minussym term
-    ;
-
-term:
-    factor
-    | term multsym factor
-    | term divsym factor
-    ;
-
-factor:
-    identsym
-    | numbersym
-    | sign factor
-    | '(' expr ')'
-    ;
-
-sign: 
-    plussym
-    | minussym
-    ;
+factor : identsym { $$ = ast_expr_ident($1); }
+       | numbersym { $$ = ast_expr_number($1); }
+       | "(" expr ")" { $$ = $2; }
+;
 
 %%
 

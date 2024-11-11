@@ -7,7 +7,7 @@
 // Build the symbol table for the given program AST
 // and check the given program AST for duplicate declarations
 // or uses of identifiers that were not declared
-extern program_t scope_check_program(program_t prog);
+extern block_t scope_check_program(block_t prog);
 
 // build the symbol table and check the declarations in vds
 extern void scope_check_varDecls(var_decls_t vds);

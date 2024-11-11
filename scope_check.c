@@ -14,7 +14,7 @@
 // and check for duplicate declarations
 // or uses of undeclared identifiers
 // Return the modified AST with id_use pointers
-program_t scope_check_program(program_t prog)
+block_t scope_check_program(block_t prog)
 {
     symtab_enter_scope();
     scope_check_varDecls(prog.var_decls);
