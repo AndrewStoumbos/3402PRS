@@ -117,56 +117,8 @@ extern void setProgAST(block_t t);
 }
 
 %%
+ /* Write your grammar rules below and before the next %% */
 
-program : varDecls stmts { program_t prog = ast_program($1, $2); setProgAST(prog); }
-;
-
-<<<<<<< HEAD
-stmts : stmt { $$ = ast_stmts_singleton($1); }
-      | stmts stmt { $$ = ast_stmts($1, $2); }
-;
-
-stmt : assignStmt { $$ = ast_stmt_assign($1); }
-     | beginStmt { $$ = ast_stmt_begin($1); }
-     | ifStmt { $$ = ast_stmt_if($1); }
-     | whileStmt { $$ = ast_stmt_while($1); }
-     | readStmt { $$ = ast_stmt_read($1); }
-     | printStmt { $$ = ast_stmt_print($1); }
-;
-
-ifStmt : ifsym "(" expr ")" stmt { $$ = ast_if_stmt($3, $5); }
-       | ifsym "(" expr ")" stmt elsesym stmt { $$ = ast_if_else_stmt($3, $5, $7); }
-;
-
-whileStmt : whilesym "(" expr ")" stmt { $$ = ast_while_stmt($3, $5); }
-;
-
-printStmt : printsym expr ";" { $$ = ast_print_stmt($2); }
-;
-
-expr : lterm
-     | lterm relOp lterm { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
-
-lterm : lfactor
-      | "!" lterm { $$ = ast_expr_logical_not($2); }
-;
-
-lfactor : term
-        | lfactor "+" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-        | lfactor "-" term { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
-
-term : factor
-     | term "*" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-     | term "/" factor { $$ = ast_expr_binary_op(ast_binary_op_expr($1, $2, $3)); }
-;
-
-factor : identsym { $$ = ast_expr_ident($1); }
-       | numbersym { $$ = ast_expr_number($1); }
-       | "(" expr ")" { $$ = $2; }
-;
-=======
 program:
     block "."
     ;
@@ -321,9 +273,9 @@ sign:
     minussym
     | plussym
     ;
->>>>>>> a6aae21 (spl.y is generally built, but has some issues)
 
 %%
 
 // Set the program's ast to be ast
 void setProgAST(block_t ast) { progast = ast; }
+
