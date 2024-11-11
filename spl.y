@@ -120,14 +120,13 @@ extern void setProgAST(block_t t);
  /* Write your grammar rules below and before the next %% */
 
 program:
-    block "."
+    block "." { setProgAST($1); }
     ;
 
 block:
     "begin" constDecls varDecls procDecls stmts "end"
     {
-        block_t prog = ast_block($1, $2, $3, $4, $5);
-        setProgAST(prog);
+        $$ = ast_block($1,$2,$3,$4,$5);
     }
     ;
 
@@ -154,7 +153,7 @@ constDefList:
     ;
 
 constDef:
-    identsym "=" numbersym { $$  = ast_const_def($1, $3); }
+    identsym eqsym numbersym { $$ = ast_const_def($1, $3); }
     ;
 
 varDecls:
@@ -268,6 +267,7 @@ factor:
     | numbersym { $$ = ast_expr_number($1); }
     | sign factor { $$ = ast_expr_signed_expr($1, $2); }
     | "(" expr ")" { $$ = $2; }
+    ;
 
 sign:
     minussym
@@ -278,4 +278,5 @@ sign:
 
 // Set the program's ast to be ast
 void setProgAST(block_t ast) { progast = ast; }
+
 
