@@ -1,51 +1,70 @@
+/* $Id: symtab.h,v 1.5 2023/11/03 12:29:45 leavens Exp $ */
 #ifndef _SYMTAB_H
 #define _SYMTAB_H
 
-#include <stdbool.h>
-#include "machine_types.h"
-#include "ast.h"
+#include "scope.h"
+#include "id_use.h"
 
-// Define a struct for the symbols
-typedef enum { VAR_SYMBOL, FUNC_SYMBOL } symbol_type_e;
+// Maximum nesting of potential scopes
+#define MAX_NESTING 100
 
-typedef struct symbol_s {
-    const char *name;         // Symbol name
-    symbol_type_e type;       // Type: variable or function
-    bool is_declared;         // Whether the symbol is declared
-    bool is_defined;          // Whether the symbol is defined (only for functions)
-    // Additional info (e.g., data types, etc.)
-    // We can add more fields here as needed.
-    struct symbol_s *next;    // Next symbol in the hash table bucket (for collision resolution)
-} symbol_t;
+// initialize the symbol table
+extern void symtab_initialize();
 
-// Define the symbol table itself (usually a hash table)
-#define SYMTAB_SIZE 100
-typedef struct {
-    symbol_t *buckets[SYMTAB_SIZE]; // Array of symbol lists (hash table)
-    // Additional fields if needed (e.g., current scope stack)
-} symtab_t;
+// Return the number of scopes currently in the symbol table.
+extern unsigned int symtab_size();
 
-// Global symbol table
-extern symtab_t *global_symtab;
+// Does this symbol table have any scopes in it?
+extern bool symtab_empty();
 
-// Function declarations
+// Return the current scope's
+// count of variables declared
+extern unsigned int symtab_scope_loc_count();
 
-// Initialize a new symbol table
-void symtab_initialize(void);
+// Return the current scope's size
+// (the number of declared ids).
+extern unsigned int symtab_scope_size();
 
-// Destroy the symbol table (free all allocated memory)
-void symtab_destroy(void);
+// Is the current scope full?
+extern bool symtab_scope_full();
 
-// Insert a symbol into the symbol table
-void symtab_insert(const char *name, symbol_type_e type);
+// Return the current nesting level 
+// (num. of symtab_enter_scope() calls
+//  - num. of symtab_leave_scope() calls
+extern unsigned int
+   symtab_current_nesting_level();
 
-// Look up a symbol by its name in the symbol table
-symbol_t *symtab_lookup(const char *name);
+// Is the symbol table itself full?
+extern bool symtab_full();
 
-// Remove a symbol from the symbol table (e.g., for handling scope exit)
-void symtab_remove(const char *name);
+// Is name declared?
+// (this looks back through all scopes)
+extern bool symtab_declared(const char *name);
 
-// Utility functions (e.g., hash function)
-unsigned int symtab_hash(const char *name);
+// Is name declared in the current scope?
+// (this only looks in the current scope)
+extern bool
+         symtab_declared_in_current_scope(
+		        const char *name);
 
-#endif /* _SYMTAB_H */
+// Requires: attrs != NULL &&
+// !symtab_declared_in_current_scope(name)
+// Add an association from the given name
+// to the given attributes
+extern void symtab_insert(
+       const char *name, id_attrs *attrs);
+
+// Requires: !symtab_full()
+// Start a new scope (for a block)
+extern void symtab_enter_scope();
+
+// Requires: !symtab_empty()
+extern void symtab_leave_scope();
+
+// If name is declared, return
+// an id_use pointer for it, otherwise
+// return NULL if name isn't declared
+extern id_use *symtab_lookup(
+                       const char *name);
+
+#endif
