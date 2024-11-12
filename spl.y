@@ -26,7 +26,7 @@ extern void yyerror(const char *filename, const char *msg);
 %parse-param { char const *file_name }
 
 %token <ident> identsym
-%token <number> numbersym
+%token <number> numbersym 
 %token <token> plussym    "+"
 %token <token> minussym   "-"
 %token <token> multsym    "*"
@@ -153,7 +153,7 @@ constDefList:
     ;
 
 constDef:
-    identsym eqsym numbersym { $$ = ast_const_def($1, $3); }
+    identsym "=" numbersym { $$ = ast_const_def($1, $3); }
     ;
 
 varDecls:
@@ -278,5 +278,7 @@ sign:
 
 // Set the program's ast to be ast
 void setProgAST(block_t ast) { progast = ast; }
+
+
 
 
