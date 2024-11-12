@@ -1,4 +1,3 @@
-/* $Id: symtab.c,v 1.6 2024/11/08 17:05:13 leavens Exp leavens $ */
 #include <stddef.h>
 #include "symtab.h"
 #include "scope.h"
@@ -143,6 +142,12 @@ id_use *symtab_lookup(const char *name)
         levelsOut++;
     }
     return NULL;
+}
+
+id_attrs *symtab_find(const char *name)
+{
+    id_attrs *attrs = scope_lookup(symtab[symtab_top_idx], name);
+    return attrs;
 }
 
 // We'll use lexical addresses in HW4...

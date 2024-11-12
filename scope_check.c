@@ -1,4 +1,3 @@
-/* $Id: scope_check.c,v 1.20 2023/11/13 14:10:00 leavens Exp $ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,118 +7,144 @@
 #include "ast.h"
 #include "utilities.h"
 #include "symtab.h"
-#include "scope_check.h"
 
-// Build the symbol table for block
-// and check for duplicate declarations
-// or uses of undeclared identifiers
-// Return the modified AST with id_use pointers
-block_t scope_check_program(block_t block)
+// Build the symbol table for a program block and check declarations
+// Return: Modified AST with id_use pointers updated
+block_t scope_check_program(block_t block) 
 {
-    symtab_enter_scope();
+    symtab_enter_scope(); // Enter a new scope for the program block
+    
+    // Check constant, variable, and procedure declarations
     scope_check_constDecls(block.const_decls);
     scope_check_varDecls(block.var_decls);
     scope_check_procDecls(block.proc_decls);
+    
+    // Check statements within the block
     block.stmts = scope_check_stmts(block.stmts);
-    symtab_leave_scope();
+    
+    symtab_leave_scope(); // Exit the scope after processing
     return block;
 }
 
-// build the symbol table and check the declarations in cds
-void scope_check_constDecls(const_decls_t cds)
+// Process constant declarations
+// Checks for duplicate declarations
+void scope_check_constDecls(const_decls_t cds) 
 {
     const_decl_t *cdp1 = cds.start;
+    
+    // Iterate over each constant declaration
     while (cdp1 != NULL) 
     {
         scope_check_constDecl(*cdp1);
         cdp1 = cdp1->next;
-    } return;
+    }
 }
 
-// Add declarations for the names in cd,
-// reporting duplicate declarations
-void scope_check_constDecl(const_decl_t cd)
+// Process a single constant declaration for duplicates
+void scope_check_constDecl(const_decl_t cd) 
 {
     scope_check_const_def_list(cd.const_def_list);
-} 
+}
 
-void scope_check_const_def_list(const_def_list_t cdl)
+// Process a list of constant definitions
+void scope_check_const_def_list(const_def_list_t cdl) 
 {
     const_def_t *cdp2 = cdl.start;
+    
+    // Iterate over each constant definition in the list
     while (cdp2 != NULL) 
     {
         scope_check_const_def(*cdp2);
         cdp2 = cdp2->next;
-    } return;
-} 
-
-void scope_check_const_def(const_def_t cd)
-{
-    ident_t idp = cd.ident;
-    scope_check_declare_ident(idp, cd.type_tag);
+    }
 }
 
-// build the symbol table and check the declarations in vds
-void scope_check_varDecls(var_decls_t vds)
+// Process a single constant definition by declaring its identifier
+void scope_check_const_def(const_def_t cd) 
 {
+    if (cd.ident.name != NULL) 
+    {
+        scope_check_declare_ident(cd.ident, constant_idk);
+    } 
+    else if (cd.ident.file_loc != NULL) 
+    {
+        bail_with_prog_error(*(cd.ident.file_loc), "Identifier name is NULL");
+    }
+}
+
+// Process variable declarations in the block
+void scope_check_varDecls(var_decls_t vds) {
     var_decl_t *vdp = vds.var_decls;
+    
+    // Iterate over each variable declaration
     while (vdp != NULL) 
     {
-        scope_check_varDecl(*vdp); // SEG FAULT CAUSE
+        scope_check_varDecl(*vdp);
         vdp = vdp->next;
-    } return;
+    }
 }
 
-// Add declarations for the names in vd,
-// reporting duplicate declarations
-void scope_check_varDecl(var_decl_t vd)
+// Process a single variable declaration by declaring its identifiers
+void scope_check_varDecl(var_decl_t vd) 
 {
-    if(vd.type_tag != NULL)
-        scope_check_idents(vd.ident_list, vd.type_tag);
-} 
+    scope_check_idents(vd.ident_list, variable_idk);
+}
 
-// Add declarations for the names in ids
-// to current scope as type t
-// reporting any duplicate declarations
-void scope_check_idents(ident_list_t ids, id_kind t)
+// Declare each identifier in the list as a specific type
+void scope_check_idents(ident_list_t ids, id_kind t) 
 {
     ident_t *idp = ids.start;
+    
+    // Iterate over identifiers in the list
     while (idp != NULL) 
     {
-        scope_check_declare_ident(*idp, t); // SEG FAULT CAUSE
+        scope_check_declare_ident(*idp, t);
         idp = idp->next;
-    } return;
+    }
 }
 
-// Add declaration for id
-// to current scope as type t
-// reporting if it's a duplicate declaration
-void scope_check_declare_ident(ident_t id, id_kind t)
+// Declare an identifier in the current scope and report duplicates
+void scope_check_declare_ident(ident_t id, id_kind t) 
 {
     if (id.name == NULL) 
     {
-        if(id.file_loc != NULL)
-            bail_with_prog_error(*(id.file_loc), "identifier name is NULL");
+        if (id.file_loc != NULL) 
+        {
+            bail_with_prog_error(*(id.file_loc), "Identifier name is NULL");
+        }
         return;
     }
-    else if (symtab_declared_in_current_scope(id.name)) 
+
+    // Check if the identifier is already declared in the current scope
+    if (symtab_declared_in_current_scope(id.name)) 
     {
-        if(id.file_loc != NULL)
-            bail_with_prog_error(*(id.file_loc), "variable \"%s\" is already declared as a constant", id.name);
+        if (id.file_loc != NULL)
+        {
+            id_use *ident_id = symtab_lookup(id.name);
+            if (ident_id != NULL && ident_id->attrs != NULL) 
+            {
+                bail_with_prog_error(*(id.file_loc), "%s \"%s\" is already declared as a %s",
+                                     kind2str(t), id.name, kind2str(ident_id->attrs->kind));
+            }
+        }
         return;
-    } 
-    else if(id.file_loc != NULL)
+    }
+
+    // Declare the identifier with its attributes
+    if (id.file_loc != NULL) 
     {
         int ofst_cnt = symtab_scope_loc_count();
-        id_attrs *attrs = create_id_attrs(*(id.file_loc), variable_idk, ofst_cnt);
-        if(attrs != NULL) symtab_insert(id.name, attrs);
+        id_attrs *attrs = create_id_attrs(*(id.file_loc), t, ofst_cnt);
+        if (attrs != NULL) symtab_insert(id.name, attrs);
     }
 }
 
-// build the symbol table and check the declarations in pds
-void scope_check_procDecls(proc_decls_t pds)
+// Process procedure declarations in the block
+void scope_check_procDecls(proc_decls_t pds) 
 {
     proc_decl_t *pdp = pds.proc_decls;
+    
+    // Iterate over each procedure declaration
     while (pdp != NULL) 
     {
         scope_check_procDecl(*pdp);
@@ -127,61 +152,64 @@ void scope_check_procDecls(proc_decls_t pds)
     }
 }
 
-// Add declarations for the names in pd,
-// reporting duplicate declarations
-void scope_check_procDecl(proc_decl_t pd)
+// Process a single procedure declaration and check for duplicates
+void scope_check_procDecl(proc_decl_t pd) 
 {
     if (pd.name == NULL) 
     {
-        bail_with_prog_error(*(pd.file_loc), "identifier name is NULL");
+        if (pd.file_loc != NULL) 
+        {
+            bail_with_prog_error(*(pd.file_loc), "Procedure name is NULL");
+        }
         return;
     }
-    else if (symtab_declared_in_current_scope(pd.name)) 
+
+    if (symtab_declared_in_current_scope(pd.name)) 
     {
         if (pd.block != NULL) 
         {
-            *(pd.block) = scope_check_program(*(pd.block));
-        } else {
-            // Handle the case where pd.block is NULL (e.g., logging, error, etc.)
+            *pd.block = scope_check_program(*pd.block);
+        } 
+        else if (pd.file_loc != NULL) 
+        {
             bail_with_prog_error(*(pd.file_loc), "Procedure block is NULL for procedure %s", pd.name);
         }
     } 
     else 
     {
         int ofst_cnt = symtab_scope_loc_count();
-        id_attrs *attrs = create_id_attrs(*(pd.file_loc), procedure_idk, ofst_cnt); 
-        symtab_insert(pd.name, attrs); 
-    } 
-        // ^^^ Causing Seg fault on scope test 2
-} 
+        id_attrs *attrs = create_id_attrs(*(pd.file_loc), procedure_idk, ofst_cnt);
+        symtab_insert(pd.name, attrs);
+    }
+}
 
-// check the statements to make sure that
-// all idenfifiers referenced in them have been declared
-// (if not, then produce an error)
-// Return the modified AST with id_use pointers
-stmts_t scope_check_stmts(stmts_t stmts)
+// Check all statements within a block
+// Returns the modified AST with id_use pointers
+stmts_t scope_check_stmts(stmts_t stmts) 
 {
-    switch (stmts.stmts_kind)
+    switch (stmts.stmts_kind) 
     {
         case empty_stmts_e:
-        // no statements are in this case, so just return
-        break;
+            // No statements to check
+            break;
 
         case stmt_list_e:
             stmts.stmt_list = scope_check_stmt_list(stmts.stmt_list);
-        break;
+            break;
 
         default:
-            bail_with_error("Call to scope_check_stmts with an AST that is not a statement for stmts.stmts_kind!");
-        break;
+            bail_with_error("Invalid AST in scope_check_stmts for stmts.stmts_kind!");
+            break;
     }
 
     return stmts;
 }
 
-stmt_list_t scope_check_stmt_list(stmt_list_t sl)
+// Process a list of statements
+stmt_list_t scope_check_stmt_list(stmt_list_t sl) 
 {
     stmt_t *sp = sl.start;
+
     while (sp != NULL) 
     {
         *sp = scope_check_stmt(*sp);
@@ -191,52 +219,42 @@ stmt_list_t scope_check_stmt_list(stmt_list_t sl)
     return sl;
 }
 
-// check the statement to make sure that
-// all idenfifiers used have been declared
-// (if not, then produce an error)
-// Return the modified AST with id_use pointers
-stmt_t scope_check_stmt(stmt_t stmt)
+// Check individual statement for undeclared identifiers
+stmt_t scope_check_stmt(stmt_t stmt) 
 {
     switch (stmt.stmt_kind) 
     {
         case assign_stmt:
-            stmt.data.assign_stmt
-            = scope_check_assignStmt(stmt.data.assign_stmt);
-        break;
+            stmt.data.assign_stmt = scope_check_assignStmt(stmt.data.assign_stmt);
+            break;
 
         case call_stmt:
-            stmt.data.call_stmt
-            = scope_check_callStmt(stmt.data.call_stmt);
-        break;
+            stmt.data.call_stmt = scope_check_callStmt(stmt.data.call_stmt);
+            break;
 
         case if_stmt:
-            stmt.data.if_stmt
-            = scope_check_ifStmt(stmt.data.if_stmt);
-        break;
+            stmt.data.if_stmt = scope_check_ifStmt(stmt.data.if_stmt);
+            break;
 
         case while_stmt:
-            stmt.data.while_stmt
-            = scope_check_whileStmt(stmt.data.while_stmt);
-        break;
+            stmt.data.while_stmt = scope_check_whileStmt(stmt.data.while_stmt);
+            break;
 
         case read_stmt:
-            stmt.data.read_stmt
-            = scope_check_readStmt(stmt.data.read_stmt);
-        break;
+            stmt.data.read_stmt = scope_check_readStmt(stmt.data.read_stmt);
+            break;
 
         case print_stmt:
-            stmt.data.print_stmt
-            = scope_check_printStmt(stmt.data.print_stmt);
-        break;
+            stmt.data.print_stmt = scope_check_printStmt(stmt.data.print_stmt);
+            break;
 
         case block_stmt:
-            stmt.data.block_stmt
-            = scope_check_blockStmt(stmt.data.block_stmt);
-        break;
-        
+            stmt.data.block_stmt = scope_check_blockStmt(stmt.data.block_stmt);
+            break;
+
         default:
-            bail_with_error("Call to scope_check_stmt with an AST that is not a statement for stmts.stmt_list.start->stmt_kind");
-        break;
+            bail_with_error("Invalid AST in scope_check_stmt for stmt_kind!");
+            break;
     }
 
     return stmt;
@@ -251,18 +269,16 @@ condition_t scope_check_condition(condition_t cond)
     switch (cond.cond_kind) 
     {
         case ck_db:
-            cond.data.db_cond
-            = scope_check_db_condition(cond.data.db_cond);
-        break;
+            cond.data.db_cond = scope_check_db_condition(cond.data.db_cond);
+            break;
 
         case ck_rel:
-            cond.data.rel_op_cond
-            = scope_check_rel_op_condition(cond.data.rel_op_cond);
-        break;
+            cond.data.rel_op_cond = scope_check_rel_op_condition(cond.data.rel_op_cond);
+            break;
         
         default:
             bail_with_error("Call to scope_check_condition with an AST that is not a statement for cond.cond_kind");
-        break;
+            break;
     }
 
     return cond;
@@ -273,8 +289,7 @@ condition_t scope_check_condition(condition_t cond)
 // Return the modified AST with id_use pointers
 assign_stmt_t scope_check_assignStmt(assign_stmt_t stmt)
 {
-    id_use *temp = scope_check_ident_declared(*(stmt.file_loc), stmt.name);
-    
+    (void) scope_check_ident_declared(*(stmt.file_loc), stmt.name);
     if (stmt.expr == NULL) 
     {
         bail_with_prog_error(*(stmt.file_loc), "Expression is NULL in statement");
@@ -295,8 +310,7 @@ assign_stmt_t scope_check_assignStmt(assign_stmt_t stmt)
 // Return the modified AST with id_use pointers
 call_stmt_t scope_check_callStmt(call_stmt_t stmt)
 {
-    id_use *temp = scope_check_ident_declared(*(stmt.file_loc), stmt.name);
-
+    (void) scope_check_ident_declared(*(stmt.file_loc), stmt.name);
     return stmt;
 }
 
@@ -308,14 +322,14 @@ if_stmt_t scope_check_ifStmt(if_stmt_t stmt)
 {
     stmt.condition = scope_check_condition(stmt.condition);
 
-    if (stmt.then_stmts != NULL) 
+    if(stmt.then_stmts != NULL)
     {
         *(stmt.then_stmts) = scope_check_stmts(*(stmt.then_stmts));
     }
-    if (stmt.else_stmts != NULL) 
+    if(stmt.else_stmts != NULL)
     {
         *(stmt.else_stmts) = scope_check_stmts(*(stmt.else_stmts));
-    }
+    }       
 
     return stmt;
 }
@@ -327,7 +341,7 @@ if_stmt_t scope_check_ifStmt(if_stmt_t stmt)
 while_stmt_t scope_check_whileStmt(while_stmt_t stmt)
 {
     stmt.condition = scope_check_condition(stmt.condition);
-    if(stmt.body != NULL) 
+    if (stmt.body != NULL) 
     {
         *(stmt.body) = scope_check_stmts(*(stmt.body));
     }
@@ -341,8 +355,7 @@ while_stmt_t scope_check_whileStmt(while_stmt_t stmt)
 // Return the modified AST with id_use pointers
 read_stmt_t scope_check_readStmt(read_stmt_t stmt)
 {
-    id_use *temp = scope_check_ident_declared(*(stmt.file_loc), stmt.name);
-
+    (void) scope_check_ident_declared(*(stmt.file_loc), stmt.name);
     return stmt;
 }
 
@@ -377,29 +390,26 @@ expr_t scope_check_expr(expr_t exp)
     switch (exp.expr_kind) 
     {
         case expr_bin:
-            exp.data.binary
-            = scope_check_binary_op_expr(exp.data.binary);
-        break;
+            exp.data.binary = scope_check_binary_op_expr(exp.data.binary);
+            break;
 
         case expr_ident:
-            exp.data.ident
-            = scope_check_ident_expr(exp.data.ident);
-        break;
+            exp.data.ident = scope_check_ident_expr(exp.data.ident);
+            break;
 
         case expr_number:
             // no identifiers are possible in this case, so just return
-        break;
+            break;
 
         case expr_negated:
-            exp.data.negated
-            = scope_check_negated_expr(exp.data.negated);
-        break;
+            exp.data.negated = scope_check_negated_expr(exp.data.negated);
+            break;
 
         default:
-            bail_with_error("Unexpected expr_kind_e (%d) in scope_check_expr",
-            exp.expr_kind);
-        break;
+            bail_with_error("Unexpected expr_kind_e (%d) in scope_check_expr", exp.expr_kind);
+            break;
     }
+
     return exp;
 }
 
@@ -419,18 +429,16 @@ binary_op_expr_t scope_check_binary_op_expr(binary_op_expr_t exp)
 negated_expr_t scope_check_negated_expr(negated_expr_t exp)
 {
     *(exp.expr) = scope_check_expr(*(exp.expr));
-
     return exp;
 }
 
 // check the identifier (id) to make sure that
 // all it has been declared (if not, then produce an error)
 // Return the modified AST with id_use pointers
-ident_t scope_check_ident_expr(ident_t id)
+ident_t scope_check_ident_expr(ident_t exp)
 {
-    id_use *temp = scope_check_ident_declared(*(id.file_loc), id.name);
-
-    return id;
+    (void) scope_check_ident_declared(*(exp.file_loc), exp.name);
+    return exp;
 }
 
 // check that name has been declared,
@@ -448,6 +456,8 @@ id_use *scope_check_ident_declared(file_location floc, const char *name)
     return ret;
 }
 
+// Check relational operator conditions for declaration of identifiers.
+// Returns the modified AST with id_use pointers.
 db_condition_t scope_check_db_condition(db_condition_t cond)
 {
     cond.dividend = scope_check_expr(cond.dividend);
@@ -456,6 +466,8 @@ db_condition_t scope_check_db_condition(db_condition_t cond)
     return cond;
 }
 
+// Check relational operator conditions for declaration of identifiers.
+// Returns the modified AST with id_use pointers.
 rel_op_condition_t scope_check_rel_op_condition(rel_op_condition_t cond)
 {
     cond.expr1 = scope_check_expr(cond.expr1);

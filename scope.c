@@ -1,4 +1,3 @@
-/* $Id: scope.c,v 1.5 2023/11/03 12:29:45 leavens Exp $ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

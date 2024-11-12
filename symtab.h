@@ -1,4 +1,3 @@
-/* $Id: symtab.h,v 1.5 2023/11/03 12:29:45 leavens Exp $ */
 #ifndef _SYMTAB_H
 #define _SYMTAB_H
 
@@ -61,5 +60,7 @@ extern void symtab_leave_scope();
 // an id_use pointer for it, otherwise
 // return NULL if name isn't declared
 extern id_use *symtab_lookup(const char *name);
+
+extern id_attrs *symtab_find(const char *name);
 
 #endif

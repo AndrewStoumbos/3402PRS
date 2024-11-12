@@ -1,4 +1,3 @@
-/* $Id: scope.h,v 1.3 2023/11/03 12:29:45 leavens Exp $ */
 #ifndef _SCOPE_H
 #define _SCOPE_H
 
