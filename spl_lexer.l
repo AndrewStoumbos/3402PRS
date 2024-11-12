@@ -1,4 +1,4 @@
-/* $Id: spl_lexer_definitions_top.l,v 1.4 2024/10/06 19:16:25 leavens Exp leavens $ */
+/* $Id: spl_lexer.l,v 1.14 2024/10/22 18:32:03 leavens Exp leavens $ */
 /* Lexical Analyzer for SPL */
 
 %option header-file = "spl_lexer.h"
@@ -76,80 +76,94 @@ static void number2ast(unsigned int val)
 
 %}
 
-digit    [0-9]
-letter   [a-zA-Z]
-ident    {letter}({letter}|{digit})*
-number   {digit}+
-ignored  [ \t\v\f\r]
-%%
-{ignored}         { ; }
+ /* you can add actual definitions below, before the %% */
 
-"const"           { tok2ast(constsym); return constsym; }
-"var"             { tok2ast(varsym); return varsym; }
-"proc"            { tok2ast(procsym); return procsym; }
-"call"            { tok2ast(callsym); return callsym; }
-"begin"           { tok2ast(beginsym); return beginsym; }
-"end"             { tok2ast(endsym); return endsym; }
-"if"              { tok2ast(ifsym); return ifsym; }
-"then"            { tok2ast(thensym); return thensym; }
-"else"            { tok2ast(elsesym); return elsesym; }
-"while"           { tok2ast(whilesym); return whilesym; }
-"do"              { tok2ast(dosym); return dosym; }
-"read"            { tok2ast(readsym); return readsym; }
-"print"           { tok2ast(printsym); return printsym; }
-"divisible"       { tok2ast(divisiblesym); return divisiblesym; }
-"by"              { tok2ast(bysym); return bysym; }
-
-"=="              { tok2ast(eqeqsym); return eqeqsym; }
-"!="              { tok2ast(neqsym); return neqsym; }
-"<="              { tok2ast(leqsym); return leqsym; }
-">="              { tok2ast(geqsym); return geqsym; }
-"<"               { tok2ast(ltsym); return ltsym; }
-">"               { tok2ast(gtsym); return gtsym; }
-
-{ident}           { ident2ast(yytext); return identsym; }
-{number} {
-    // Convert the matched string to a long integer
-    // Define the maximum number allowed (for example, the maximum value of a 32-bit signed int)
-    if (strlen(yytext) > 32) {
-        char message[150];
-        sprintf(message, "Number (%s) is too large!", yytext);
-        yyerror(input_filename, message);
-    } 
-    number2ast(numbersym); 
-    return numbersym;
-}
-
-
-"+"               { tok2ast(plussym); return plussym; }
-"-"               { tok2ast(minussym); return minussym; }
-"*"               { tok2ast(multsym); return multsym; }
-"/"               { tok2ast(divsym); return divsym; }
-
-";"               { tok2ast(semisym); return semisym; }
-"="               { tok2ast(eqsym); return eqsym; }
-":="              { tok2ast(becomessym); return becomessym; }
-","               { tok2ast(commasym); return commasym; }
-"."               { tok2ast(periodsym); return periodsym; }
-"("               { tok2ast(lparensym); return lparensym; }
-")"               { tok2ast(rparensym); return rparensym; }
-
-[\?!\"\{\}#\'_&^]   { 
-    char invalid_char = yytext[0];  // The matched character is in yytext[0]
-    char message[100];  // Buffer for the error message
-
-    // Format the error message
-    sprintf(message, "invalid character: '%c' ('\\0%o')", invalid_char, (unsigned char)*yytext);
-
-    // Call yyerror with the formatted message
-    yyerror(input_filename, message);
-}
-
-[ \t\n]+          { ; }/* Ignore whitespace */
-"%"[^\n]*         { ; }/* Ignore comments */
-
+DIGIT	[0-9]
+NUMBER          {DIGIT}+
+LETTER		[a-zA-Z]
+LETTERORDIGIT	({LETTER}|{DIGIT})
+IDENT		{LETTER}({LETTERORDIGIT}*)
+NEWLINE         \n
+CR              \r
+EOL             ({NEWLINE}|({CR}{NEWLINE}))
+COMMENTSTART    %
+COMMENT         {COMMENTSTART}.*
+IGNORED         [ \t\v\f\r]
 
 %%
+
+ /* fill in the rules for your lexer below! */
+
+{IGNORED}       { ; } /* do nothing */
+{COMMENT}       { ; } /* ignore comments */
+{EOL}           { ; } /* ignore EOL */
+
+{NUMBER}        { unsigned long lval;
+                  int ssf_ret;
+                  ssf_ret = sscanf(yytext, "%lu", &lval);
+                  if (ssf_ret != 1) {
+                      bail_with_error("Number (%s) couldn't be read by lexer!",
+				      yytext);
+                  }
+                  if (INT_MAX < lval ) {
+                      char msgbuf[512];
+                      if (strlen(yytext) >= 300) {
+                          snprintf(msgbuf, 327, "Number (%s...) is too large!",
+				  yytext);
+                      } else {
+                          sprintf(msgbuf, "Number (%s) is too large!", yytext);
+                      }
+                      yyerror(lexer_filename(), msgbuf);
+                  }
+                  number2ast((int) lval);
+                  return numbersym; 
+                }
+
+\+              { tok2ast(plussym); return plussym; }
+-               { tok2ast(minussym); return minussym; }
+\*              { tok2ast(multsym); return multsym; }
+\/              { tok2ast(divsym); return divsym; }  
+
+\.              { return periodsym; }
+\;              { return semisym; }
+,               { return commasym; }
+:=              { return becomessym; }
+==              { tok2ast(eqsym); return eqeqsym; }
+=               { tok2ast(eqsym); return eqsym; }
+!=              { tok2ast(neqsym); return neqsym; }
+\<=             { tok2ast(leqsym); return leqsym; }
+\>=             { tok2ast(geqsym); return geqsym; }
+\>              { tok2ast(gtsym); return gtsym; }
+\<              { tok2ast(ltsym); return ltsym; }
+\(              { tok2ast(lparensym); return lparensym; }
+\)              { tok2ast(rparensym); return rparensym; }
+
+const           { tok2ast(constsym); return constsym; }
+var             { tok2ast(varsym); return varsym; }
+proc            { tok2ast(procsym); return procsym; }
+call            { tok2ast(callsym); return callsym; }
+begin           { tok2ast(beginsym); return beginsym; }
+end             { tok2ast(endsym); return endsym; }
+if              { tok2ast(ifsym); return ifsym; }
+then            { tok2ast(thensym); return thensym; }
+else            { tok2ast(elsesym); return elsesym; }
+while           { tok2ast(whilesym); return whilesym; }
+do              { tok2ast(dosym); return dosym; }
+read            { tok2ast(readsym); return readsym; }
+print           { tok2ast(printsym); return printsym; }
+divisible       { tok2ast(divisiblesym); return divisiblesym; }
+by              { tok2ast(bysym); return bysym; }
+
+{IDENT}         { ident2ast(yytext); return identsym; }
+
+.   { char msgbuf[512];
+      sprintf(msgbuf, "invalid character: '%c' ('\\0%o')", *yytext, *yytext);
+      yyerror(lexer_filename(), msgbuf);
+    }
+%%
+
+ /* This code goes in the user code section of the spl_lexer.l file,
+   following the last %% above. */
 
 // Requires: fname != NULL
 // Requires: fname is the name of a readable file
@@ -236,3 +250,4 @@ void lexer_output()
         lexer_print_token(t, yylineno, yytext);
     } while (t != YYEOF);
 }
+
