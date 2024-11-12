@@ -28,12 +28,12 @@ block_t scope_check_program(block_t block)
 // build the symbol table and check the declarations in cds
 void scope_check_constDecls(const_decls_t cds)
 {
-    const_decl_t *cdp = cds.start;
-    while (cdp != NULL) 
+    const_decl_t *cdp1 = cds.start;
+    while (cdp1 != NULL) 
     {
-        scope_check_constDecl(*cdp);
-        cdp = cdp->next;
-    }
+        scope_check_constDecl(*cdp1);
+        cdp1 = cdp1->next;
+    } return;
 }
 
 // Add declarations for the names in cd,
@@ -45,12 +45,12 @@ void scope_check_constDecl(const_decl_t cd)
 
 void scope_check_const_def_list(const_def_list_t cdl)
 {
-    const_def_t *cdp = cdl.start;
-    while (cdp != NULL) 
+    const_def_t *cdp2 = cdl.start;
+    while (cdp2 != NULL) 
     {
-        scope_check_const_def(*cdp);
-        cdp = cdp->next;
-    }
+        scope_check_const_def(*cdp2);
+        cdp2 = cdp2->next;
+    } return;
 } 
 
 void scope_check_const_def(const_def_t cd)
@@ -65,16 +65,17 @@ void scope_check_varDecls(var_decls_t vds)
     var_decl_t *vdp = vds.var_decls;
     while (vdp != NULL) 
     {
-        scope_check_varDecl(*vdp);
+        scope_check_varDecl(*vdp); // SEG FAULT CAUSE
         vdp = vdp->next;
-    }
+    } return;
 }
 
 // Add declarations for the names in vd,
 // reporting duplicate declarations
 void scope_check_varDecl(var_decl_t vd)
 {
-    scope_check_idents(vd.ident_list, vd.type_tag);
+    if(vd.type_tag != NULL)
+        scope_check_idents(vd.ident_list, vd.type_tag);
 } 
 
 // Add declarations for the names in ids
@@ -85,9 +86,9 @@ void scope_check_idents(ident_list_t ids, id_kind t)
     ident_t *idp = ids.start;
     while (idp != NULL) 
     {
-        scope_check_declare_ident(*idp, t);
+        scope_check_declare_ident(*idp, t); // SEG FAULT CAUSE
         idp = idp->next;
-    }
+    } return;
 }
 
 // Add declaration for id
@@ -95,17 +96,24 @@ void scope_check_idents(ident_list_t ids, id_kind t)
 // reporting if it's a duplicate declaration
 void scope_check_declare_ident(ident_t id, id_kind t)
 {
-    if (symtab_declared_in_current_scope(id.name)) 
+    if (id.name == NULL) 
     {
-        // only variables in BLOCK
-        bail_with_prog_error(*(id.file_loc), "variable \"%s\" is already declared as a constant", id.name);
+        if(id.file_loc != NULL)
+            bail_with_prog_error(*(id.file_loc), "identifier name is NULL");
+        return;
+    }
+    else if (symtab_declared_in_current_scope(id.name)) 
+    {
+        if(id.file_loc != NULL)
+            bail_with_prog_error(*(id.file_loc), "variable \"%s\" is already declared as a constant", id.name);
+        return;
     } 
-    else 
+    else if(id.file_loc != NULL)
     {
         int ofst_cnt = symtab_scope_loc_count();
-        id_attrs *attrs = create_id_attrs(*(id.file_loc), t, ofst_cnt);
-        symtab_insert(id.name, attrs);
-    } 
+        id_attrs *attrs = create_id_attrs(*(id.file_loc), variable_idk, ofst_cnt);
+        if(attrs != NULL) symtab_insert(id.name, attrs);
+    }
 }
 
 // build the symbol table and check the declarations in pds
@@ -121,10 +129,30 @@ void scope_check_procDecls(proc_decls_t pds)
 
 // Add declarations for the names in pd,
 // reporting duplicate declarations
-void scope_check_procDecl(proc_decl_t pd) // FIX
+void scope_check_procDecl(proc_decl_t pd)
 {
-    //scope_check_program(vd.block);
-    *(pd.block) = scope_check_program(*(pd.block));
+    if (pd.name == NULL) 
+    {
+        bail_with_prog_error(*(pd.file_loc), "identifier name is NULL");
+        return;
+    }
+    else if (symtab_declared_in_current_scope(pd.name)) 
+    {
+        if (pd.block != NULL) 
+        {
+            *(pd.block) = scope_check_program(*(pd.block));
+        } else {
+            // Handle the case where pd.block is NULL (e.g., logging, error, etc.)
+            bail_with_prog_error(*(pd.file_loc), "Procedure block is NULL for procedure %s", pd.name);
+        }
+    } 
+    else 
+    {
+        int ofst_cnt = symtab_scope_loc_count();
+        id_attrs *attrs = create_id_attrs(*(pd.file_loc), procedure_idk, ofst_cnt); 
+        symtab_insert(pd.name, attrs); 
+    } 
+        // ^^^ Causing Seg fault on scope test 2
 } 
 
 // check the statements to make sure that
@@ -247,8 +275,16 @@ assign_stmt_t scope_check_assignStmt(assign_stmt_t stmt)
 {
     id_use *temp = scope_check_ident_declared(*(stmt.file_loc), stmt.name);
     
-    assert(stmt.expr != NULL);  // since would bail if not declared
-    *stmt.expr = scope_check_expr(*(stmt.expr));
+    if (stmt.expr == NULL) 
+    {
+        bail_with_prog_error(*(stmt.file_loc), "Expression is NULL in statement");
+        return stmt;
+    }
+    // Perform the expression scope check
+    if (stmt.expr != NULL) 
+    {
+        *stmt.expr = scope_check_expr(*(stmt.expr));
+    }
 
     return stmt;
 }
@@ -272,8 +308,14 @@ if_stmt_t scope_check_ifStmt(if_stmt_t stmt)
 {
     stmt.condition = scope_check_condition(stmt.condition);
 
-    *(stmt.then_stmts) = scope_check_stmts(*(stmt.then_stmts));
-    *(stmt.else_stmts) = scope_check_stmts(*(stmt.else_stmts));
+    if (stmt.then_stmts != NULL) 
+    {
+        *(stmt.then_stmts) = scope_check_stmts(*(stmt.then_stmts));
+    }
+    if (stmt.else_stmts != NULL) 
+    {
+        *(stmt.else_stmts) = scope_check_stmts(*(stmt.else_stmts));
+    }
 
     return stmt;
 }
@@ -284,9 +326,11 @@ if_stmt_t scope_check_ifStmt(if_stmt_t stmt)
 // Return the modified AST with id_use pointers
 while_stmt_t scope_check_whileStmt(while_stmt_t stmt)
 {
-    *(stmt.body) = scope_check_stmts(*(stmt.body));
     stmt.condition = scope_check_condition(stmt.condition);
-
+    if(stmt.body != NULL) 
+    {
+        *(stmt.body) = scope_check_stmts(*(stmt.body));
+    }
 
     return stmt;
 }
