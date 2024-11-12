@@ -98,9 +98,7 @@ void scope_check_declare_ident(ident_t id, id_kind t)
     if (symtab_declared_in_current_scope(id.name)) 
     {
         // only variables in BLOCK
-        bail_with_prog_error(*(id.file_loc),
-                    "Variable \"%s\" has already been declared!",
-                    id.name);
+        bail_with_prog_error(*(id.file_loc), "variable \"%s\" is already declared as a constant", id.name);
     } 
     else 
     {
